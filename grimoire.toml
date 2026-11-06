@@ -1,0 +1,33 @@
+# Grimoire book configuration for the @deckyard/seafile documentation.
+
+[book]
+title = "@deckyard/seafile"
+description = "A client for the Seafile Web API: libraries, files, links, trash, tokens and search"
+language = "en"
+src = "docs"
+
+[build]
+out = "site"
+clean = true
+jobs = 0
+
+[html]
+theme = "nordic"
+mode = "auto"
+navPosition = "left"
+tocPosition = "right"
+tocDepth = 3
+sectionNumbers = true
+titleUrl = "https://deckyard.github.io/deck-seafile/"
+repoUrl = "https://github.com/deckyard/deck-seafile"
+repoLabel = "Source"
+editUrl = "https://github.com/deckyard/deck-seafile/edit/main/docs/{path}"
+
+[highlight]
+enabled = true
+
+[search]
+enabled = true
+
+[pdf]
+enabled = false

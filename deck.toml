@@ -1,0 +1,17 @@
+[package]
+name = "@deckyard/seafile"
+version = "0.1.0"
+description = "A client for the Seafile Web API: libraries, files, links, trash, tokens and search"
+license = "LGPL-3.0-only"
+authors = ["mplx <mplx@jennifer-lang.dev>"]
+# net: HTTPS requests to the Seafile server
+capabilities = ["net"]
+keywords = ["seafile", "cloud-storage", "files", "sharing", "upload", "download", "api"]
+
+[package.urls]
+deck = "https://raw.githubusercontent.com/deckyard/deck-seafile/main/deck.toml"
+homepage = "https://github.com/deckyard/deck-seafile"
+manual = "https://deckyard.github.io/deck-seafile/"
+
+[engines]
+jennifer = ">=0.26.0"
