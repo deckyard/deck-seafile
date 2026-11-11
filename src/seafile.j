@@ -2094,7 +2094,7 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
     if (not isOk($r.status)) {
         def text as string init "";
         try {
-            $text = convert.stringFromBytes($r.body, "utf-8");
+            $text = convert.stringFromBytes("utf-8", $r.body);
         } catch (e) {
             $text = "";
         }
@@ -2415,7 +2415,7 @@ func dropTemp(c as Client, link as string, path as string, held as int) {
                 "file",
                 $name,
                 "application/octet-stream",
-                convert.bytesFromString("x", "utf-8"))
+                convert.bytesFromString("utf-8", "x"))
         ],
         {
             "Content-Range": "bytes " + $at + "-" + $at + "/" + convert.toString($held + 1),

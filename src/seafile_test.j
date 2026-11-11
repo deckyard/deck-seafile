@@ -171,7 +171,7 @@ func impatient(f as Fake) {
  * @return {string} the body
  */
 func textOf(s as Seen) {
-    return convert.stringFromBytes($s.body, "utf-8");
+    return convert.stringFromBytes("utf-8", $s.body);
 }
 
 /**
@@ -264,7 +264,7 @@ func testClientSettings() {
     testing.assertEqual($c.retries, 2);
     testing.assertEqual(idleMs(client("x")), 30000);
     testing.assertEqual(idleMs($c), 5000);
-    $c = withCaCert($c, convert.bytesFromString("PEM", "utf-8"));
+    $c = withCaCert($c, convert.bytesFromString("utf-8", "PEM"));
     testing.assertFalse($c.tls.skipVerify);
     testing.assertEqual(withReplyLimit($c, 10).replyLimit, 10);
     def r as Client init withRepoToken($c, REPO, "abc");
@@ -741,7 +741,7 @@ func testGet() {
     ]);
     def c as Client init authed($f);
     testing.assertEqual(
-        convert.stringFromBytes(get($c, REPO, "/docs/a b.txt", 0), "utf-8"),
+        convert.stringFromBytes("utf-8", get($c, REPO, "/docs/a b.txt", 0)),
         "hello");
     def seen as list of Seen init finish($f);
     testing.assertEqual($seen[0].path, "/api2/repos/" + REPO + "/file/");
@@ -930,7 +930,7 @@ func testPut() {
         ok('[{"name": "a b (1).txt", "id": "dd3a0982f29f04079c4e365cbf5fce4c9af775c2", "size": 5}]')
     ]);
     def c as Client init impatient($f);
-    def data as bytes init convert.bytesFromString("hello", "utf-8");
+    def data as bytes init convert.bytesFromString("utf-8", "hello");
     def e as Entry init put($c, REPO, "/docs/a b.txt", $data, false);
     testing.assertEqual($e.name, "a b (1).txt");
     testing.assertEqual($e.path, "/docs/a b (1).txt");
@@ -1005,10 +1005,10 @@ func testPutDropsAStaleTempFile() {
     ]);
     def c as Client init impatient($f);
     testing.assertEqual(
-        put($c, REPO, "/docs/a b.txt", convert.bytesFromString("hello", "utf-8"), true).size,
+        put($c, REPO, "/docs/a b.txt", convert.bytesFromString("utf-8", "hello"), true).size,
         5);
     testing.assertEqual(
-        put($c, REPO, "/docs/a b.txt", convert.bytesFromString("hi", "utf-8"), true).size,
+        put($c, REPO, "/docs/a b.txt", convert.bytesFromString("utf-8", "hi"), true).size,
         2);
     def seen as list of Seen init finish($f);
     testing.assertEqual(len($seen), 10);
@@ -1027,7 +1027,7 @@ func testPutDropsAStaleTempFile() {
 func testPutWithARepoTokenDoesNotAsk() {
     # A library token has no file-uploaded-bytes: link and upload only.
     def f as Fake init fake([linkTo("upload-api/0b6e-11"), ok('[{"name":"a","id":"x","size":2}]')]);
-    put(withTimeout(viaToken($f), 2000), REPO, "/a", convert.bytesFromString("hi", "utf-8"), true);
+    put(withTimeout(viaToken($f), 2000), REPO, "/a", convert.bytesFromString("utf-8", "hi"), true);
     def seen as list of Seen init finish($f);
     testing.assertEqual($seen[0].path, "/api/v2.1/via-repo-token/upload-link/");
     testing.assertEqual($seen[1].path, "/seafhttp/upload-api/0b6e-11");
@@ -1040,7 +1040,7 @@ func testPutReplace() {
         ok('[{"name":"a.txt","id":"x","size":2}]')
     ]);
     testing.assertEqual(
-        put(impatient($f), REPO, "/a.txt", convert.bytesFromString("hi", "utf-8"), true).path,
+        put(impatient($f), REPO, "/a.txt", convert.bytesFromString("utf-8", "hi"), true).path,
         "/a.txt");
     def seen as list of Seen init finish($f);
     testing.assertEqual($seen[2].query, "from=api&ret-json=1");
@@ -1054,7 +1054,7 @@ func testPutRefusesAReplyWithoutAName() {
         ok('{"success": true}')
     ]);
     try {
-        put(impatient($f), REPO, "/a.txt", convert.bytesFromString("hi", "utf-8"), true);
+        put(impatient($f), REPO, "/a.txt", convert.bytesFromString("utf-8", "hi"), true);
         missed();
     } catch (e) {
         testing.assertEqual(
@@ -1079,10 +1079,10 @@ func testUpdate() {
     ]);
     def c as Client init impatient($f);
     testing.assertEqual(
-        update($c, REPO, "/docs/a.txt", convert.bytesFromString("v2", "utf-8")),
+        update($c, REPO, "/docs/a.txt", convert.bytesFromString("utf-8", "v2")),
         "c0a9084d35de69c1b860eb2743971089f556afb7");
     try {
-        update($c, REPO, "/docs/a.txt", convert.bytesFromString("v3", "utf-8"));
+        update($c, REPO, "/docs/a.txt", convert.bytesFromString("utf-8", "v3"));
         missed();
     } catch (e) {
         testing.assertContains(messageOf($e), "the reply is not a file id");
@@ -1118,7 +1118,7 @@ func testUpdateDropsAStaleTempFile() {
         }
     ]);
     testing.assertEqual(
-        update(impatient($f), REPO, "/docs/a.txt", convert.bytesFromString("v2", "utf-8")),
+        update(impatient($f), REPO, "/docs/a.txt", convert.bytesFromString("utf-8", "v2")),
         "c0a9084d35de69c1b860eb2743971089f556afb7");
     def seen as list of Seen init finish($f);
     testing.assertEqual(len($seen), 4);
@@ -1130,7 +1130,7 @@ func testUpdateDropsAStaleTempFile() {
 }
 
 func testPutResumableStartsAtTheServerOffset() {
-    def data as bytes init convert.bytesFromString("abcdefghijklmnopqrstuvwxyz0123", "utf-8");
+    def data as bytes init convert.bytesFromString("utf-8", "abcdefghijklmnopqrstuvwxyz0123");
     def f as Fake init fake([
         ok('{"uploadedBytes":10}'),
         linkTo("upload-api/0b6e-11"),
@@ -1166,7 +1166,7 @@ func testPutResumablePercentEncodesTheName() {
         impatient($f),
         REPO,
         "/a+b 50%.txt",
-        convert.bytesFromString("abc", "utf-8"),
+        convert.bytesFromString("utf-8", "abc"),
         0,
         false,
         false);
@@ -1187,7 +1187,7 @@ func testPutResumableFreshStartsAtZero() {
         impatient($f),
         REPO,
         "/a",
-        convert.bytesFromString("abc", "utf-8"),
+        convert.bytesFromString("utf-8", "abc"),
         2,
         false,
         false);
@@ -1211,7 +1211,7 @@ func testPutResumableFreshDropsAStaleTempFile() {
         impatient($f),
         REPO,
         "/a",
-        convert.bytesFromString("abcd", "utf-8"),
+        convert.bytesFromString("utf-8", "abcd"),
         2,
         true,
         false);
@@ -1241,7 +1241,7 @@ func testPutResumableFreshDropsALargerTempFile() {
         impatient($f),
         REPO,
         "/a",
-        convert.bytesFromString("abcd", "utf-8"),
+        convert.bytesFromString("utf-8", "abcd"),
         0,
         false,
         false);
@@ -1266,7 +1266,7 @@ func testPutResumableDropsACompleteTempFile() {
         impatient($f),
         REPO,
         "/a",
-        convert.bytesFromString("abcd", "utf-8"),
+        convert.bytesFromString("utf-8", "abcd"),
         0,
         true,
         true);
@@ -1294,7 +1294,7 @@ func testPutResumableRestartsOnceAfterA400() {
         impatient($f),
         REPO,
         "/a",
-        convert.bytesFromString("abc", "utf-8"),
+        convert.bytesFromString("utf-8", "abc"),
         2,
         false,
         false);
@@ -1321,7 +1321,7 @@ func testPutResumableRestartsOnceAfterA400() {
             impatient($g),
             REPO,
             "/a",
-            convert.bytesFromString("abc", "utf-8"),
+            convert.bytesFromString("utf-8", "abc"),
             2,
             false,
             false);
@@ -1339,7 +1339,7 @@ func testPutResumableRefusesABadOffset() {
             impatient($f),
             REPO,
             "/a",
-            convert.bytesFromString("abcd", "utf-8"),
+            convert.bytesFromString("utf-8", "abcd"),
             2,
             false,
             true);
@@ -1353,7 +1353,7 @@ func testPutResumableRefusesABadOffset() {
             client("http://127.0.0.1:1"),
             REPO,
             "/a",
-            convert.bytesFromString("x", "utf-8"),
+            convert.bytesFromString("utf-8", "x"),
             -1,
             false,
             false);
@@ -1380,7 +1380,7 @@ func testPutResumableWithARepoTokenFallsBackOn400() {
         withTimeout(viaToken($f), 2000),
         REPO,
         "/a",
-        convert.bytesFromString("abc", "utf-8"),
+        convert.bytesFromString("utf-8", "abc"),
         2,
         false,
         false);
@@ -1401,7 +1401,7 @@ func testPutResumableWithARepoTokenRefusesOther() {
             withTimeout(viaToken($f), 2000),
             REPO,
             "/a",
-            convert.bytesFromString("abc", "utf-8"),
+            convert.bytesFromString("utf-8", "abc"),
             2,
             false,
             true);
@@ -1420,7 +1420,7 @@ func testPutResumableWithARepoTokenRefusesOther() {
             withTimeout(viaToken($g), 2000),
             REPO,
             "/a",
-            convert.bytesFromString("abc", "utf-8"),
+            convert.bytesFromString("utf-8", "abc"),
             2,
             false,
             false);
@@ -1441,7 +1441,7 @@ func testPutResumableWithARepoTokenStartsAtZero() {
         withTimeout(viaToken($f), 2000),
         REPO,
         "/a",
-        convert.bytesFromString("abc", "utf-8"),
+        convert.bytesFromString("utf-8", "abc"),
         2,
         false,
         true);
@@ -1466,7 +1466,7 @@ func testPutDropIsBestEffort() {
         ok('[{"name":"a.txt","id":"y","size":2}]')
     ]);
     def c as Client init withFileServer(impatient($f), "http://127.0.0.1:1");
-    def data as bytes init convert.bytesFromString("hi", "utf-8");
+    def data as bytes init convert.bytesFromString("utf-8", "hi");
     testing.assertEqual(put($c, REPO, "/a.txt", $data, true).id, "x");
     testing.assertEqual(put($c, REPO, "/a.txt", $data, true).id, "y");
     def seen as list of Seen init finish($f);
@@ -1489,7 +1489,7 @@ func testDropKeepsTheLinkQuery() {
             body: "c0a9084d35de69c1b860eb2743971089f556afb7"
         }
     ]);
-    update(impatient($f), REPO, "/a.txt", convert.bytesFromString("v2", "utf-8"));
+    update(impatient($f), REPO, "/a.txt", convert.bytesFromString("utf-8", "v2"));
     def seen as list of Seen init finish($f);
     testing.assertEqual($seen[2].query, "from=api&head=0000000000000000000000000000000000000000");
     testing.assertEqual($seen[2].range, "bytes 1-1/2");
@@ -1499,7 +1499,7 @@ func testDropKeepsTheLinkQuery() {
 func testUploadedBytesOutOfRange() {
     # A negative or huge offset is a broken reply, not a runtime error; an
     # unreadable one counts as 0.
-    def data as bytes init convert.bytesFromString("hi", "utf-8");
+    def data as bytes init convert.bytesFromString("utf-8", "hi");
     for (def held in ["-1", "9223372036854775807", "9007199254740993"]) {
         def f as Fake init fake([ok('{"uploadedBytes":' + $held + '}')]);
         try {
@@ -1550,7 +1550,7 @@ func testPutSendsAQuotedNameAsOneChunk() {
         impatient($f),
         REPO,
         "/d/a \"q\".txt",
-        convert.bytesFromString("hello", "utf-8"),
+        convert.bytesFromString("utf-8", "hello"),
         true);
     testing.assertEqual($stored.path, "/d/a \"q\".txt");
     def seen as list of Seen init finish($f);
@@ -1570,7 +1570,7 @@ func testPutSendsAQuotedNameAsOneChunk() {
             withTimeout(viaToken($g), 2000),
             REPO,
             "/q\".txt",
-            convert.bytesFromString("hi", "utf-8"),
+            convert.bytesFromString("utf-8", "hi"),
             true);
         missed();
     } catch (e) {
@@ -1579,7 +1579,7 @@ func testPutSendsAQuotedNameAsOneChunk() {
     testing.assertEqual(len(finish($g)), 2);
     def none as Client init client("http://127.0.0.1:1");
     try {
-        put($none, REPO, "/q\".txt", convert.bytesFromString("", "utf-8"), true);
+        put($none, REPO, "/q\".txt", convert.bytesFromString("utf-8", ""), true);
         missed();
     } catch (e) {
         testing.assertContains(messageOf($e), "an empty file cannot be named with \"");
@@ -1589,7 +1589,7 @@ func testPutSendsAQuotedNameAsOneChunk() {
 func testUploadsRefuseABackslash() {
     # The C fileserver keeps only what follows the last `\` of the name.
     def c as Client init withToken(client("http://127.0.0.1:1"), "t0k3n");
-    def data as bytes init convert.bytesFromString("hi", "utf-8");
+    def data as bytes init convert.bytesFromString("utf-8", "hi");
     try {
         put($c, REPO, "/d/a\\b.txt", $data, true);
         missed();
@@ -2339,7 +2339,7 @@ func testRepoTokenRefusesOtherVerbsBeforeSending() {
             } elseif ($verb == "dirDetail") {
                 dirDetail($c, REPO, "/");
             } elseif ($verb == "update") {
-                update($c, REPO, "/a", convert.bytesFromString("x", "utf-8"));
+                update($c, REPO, "/a", convert.bytesFromString("utf-8", "x"));
             } elseif ($verb == "fileHistory") {
                 fileHistory($c, REPO, "/a");
             } elseif ($verb == "shares") {
