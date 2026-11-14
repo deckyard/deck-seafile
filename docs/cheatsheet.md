@@ -10,8 +10,9 @@ Every export of `@deckyard/seafile`. Guides are listed in
 import "@deckyard/seafile/" as seafile;
 ```
 
-Every function that sends a request throws `Error{kind: "seafile"}` when it
-fails. A `repoId` is a library id (a UUID) from `libraries`; a `path` is
+Every function that sends a request throws a `SeafileError` (kind `"seafile"`)
+when it fails, or `Error{kind: "limit"}` when a body or a paged walk passes its
+cap. A `repoId` is a library id (a UUID) from `libraries`; a `path` is
 absolute in its library (`/docs/a.txt`, `/` for the root). Times are seconds
 since the epoch. "Account" marks a verb a library API token client
 (`withRepoToken`) refuses before sending anything.
@@ -35,6 +36,16 @@ since the epoch. "Account" marks a verb a library API token client
 A literal of a deck struct names every field, so build `ShareLinkOptions`
 and `SearchOptions` from the zero value: `def o as seafile.ShareLinkOptions;`
 then set fields.
+
+### `SeafileError`
+
+Every error of kind `"seafile"`.
+
+| Field | Meaning |
+|---|---|
+| `kind as string` | always `"seafile"` |
+| `message as string` | `seafile: <request>: HTTP <status>: <reason>`, or what went wrong |
+| `status as int` | the HTTP status the server answered (440 a locked file, 443 over quota, ...); 0 when the failure is not a refused request |
 
 ### `Client`
 

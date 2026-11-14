@@ -17,7 +17,9 @@
  *
  * A `Client` authenticates with an account token (`login`, `withToken`) or
  * a library API token (`withRepoToken`, the `via-repo-token` endpoints,
- * limited to one library). Every failure is `Error{kind: "seafile"}`.
+ * limited to one library). Every failure is a `SeafileError` (kind
+ * "seafile", with the HTTP `status`), except a reached cap (a body over its
+ * limit, too many pages): kind "limit".
  * Transfers take two steps: an upload or download link from the API, then
  * the `/seafhttp/...` URL, which carries its own token; no `Authorization`
  * goes there, and a link on another origin than the base URL is refused
@@ -511,8 +513,39 @@ def const REASON as int init 200;
 # The idle timeout a `timeoutMs` of 0 stands for, as `http.send` has it.
 def const DEFAULT_TIMEOUT_MS as int init 30000;
 
+/**
+ * A failed Seafile request. Every error of kind `"seafile"` is one, so its
+ * fields are safe to read once the kind matches.
+ *
+ * @field kind {string} always `"seafile"` (`ERROR_KIND`)
+ * @field message {string} `seafile: <request>: HTTP <status>: <reason>`, or what went wrong
+ * @field status {int} the HTTP status the server answered (403, 404, 440 a locked file, 443 over quota, ...); 0 when the failure is not a refused request
+ */
+export def struct SeafileError {
+    kind as string,
+    message as string,
+    status as int
+};
+
 func fail(message as string) {
-    throw Error{kind: ERROR_KIND, message: "seafile: " + $message};
+    throw SeafileError{kind: ERROR_KIND, message: "seafile: " + $message, status: 0};
+}
+
+/**
+ * Throw the SeafileError of a refused request.
+ *
+ * @param what {string} the request, for the message
+ * @param status {int} the HTTP status
+ * @param statusText {string} the reason phrase
+ * @param body {string} the body
+ * @param note {string} text to append to the message, "" for none
+ */
+func failHttp(what as string, status as int, statusText as string, body as string, note as string) {
+    throw SeafileError{
+        kind: ERROR_KIND,
+        message: "seafile: " + $what + ": " + failureText($status, $statusText, $body) + $note,
+        status: $status
+    };
 }
 
 /**
@@ -1160,6 +1193,13 @@ func sendRaw(
     try {
         $r = http.send($method, $c.url + $route, $headers, $body, $o);
     } catch (e) {
+        # a body over its limit stays a reached cap
+        if ($e.kind == "limit") {
+            throw Error{
+                kind: "limit",
+                message: "seafile: " + $method + " " + $route + ": " + $e.message
+            };
+        }
         fail($method + " " + $route + ": " + $e.message);
     }
     return $r;
@@ -1247,7 +1287,7 @@ func exchange(
     contentType as string) {
     def r as http.Response init sendRaw($c, $method, $route, $body, $contentType);
     if (not isOk($r.status)) {
-        fail($method + " " + $route + ": " + failureText($r.status, $r.statusText, $r.body));
+        failHttp($method + " " + $route, $r.status, $r.statusText, $r.body, "");
     }
     return $r;
 }
@@ -1484,10 +1524,14 @@ export func login(c as Client, username as string, password as string, otp as st
     try {
         $r = http.send("POST", $c.url + $route, $headers, $body, $o);
     } catch (e) {
+        # a body over its limit stays a reached cap
+        if ($e.kind == "limit") {
+            throw Error{kind: "limit", message: "seafile: POST " + $route + ": " + $e.message};
+        }
         fail("POST " + $route + ": " + $e.message);
     }
     if (not isOk($r.status)) {
-        fail("POST " + $route + ": " + failureText($r.status, $r.statusText, $r.body));
+        failHttp("POST " + $route, $r.status, $r.statusText, $r.body, "");
     }
     def token as string init field(decoded($r.body, "POST " + $route), "/token");
     if ($token == "") {
@@ -1901,7 +1945,7 @@ func probe(c as Client, route as string) {
         return false;
     }
     if (not isOk($r.status)) {
-        fail("GET " + $route + ": " + failureText($r.status, $r.statusText, $r.body));
+        failHttp("GET " + $route, $r.status, $r.statusText, $r.body, "");
     }
     return true;
 }
@@ -2089,6 +2133,13 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
     try {
         $r = http.requestWithBytes("GET", $link, {"Accept": "*/*"}, "", idleMs($c), $cap, $c.tls);
     } catch (e) {
+        # a body over its limit stays a reached cap
+        if ($e.kind == "limit") {
+            throw Error{
+                kind: "limit",
+                message: "seafile: GET " + transferName($link) + ": " + $e.message
+            };
+        }
         fail("GET " + transferName($link) + ": " + $e.message);
     }
     if (not isOk($r.status)) {
@@ -2098,7 +2149,7 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
         } catch (e) {
             $text = "";
         }
-        fail("GET " + transferName($link) + ": " + failureText($r.status, $r.statusText, $text));
+        failHttp("GET " + transferName($link), $r.status, $r.statusText, $text, "");
     }
     return $r.body;
 }
@@ -2176,6 +2227,13 @@ func postRaw(
             replyCap($c),
             $c.tls);
     } catch (e) {
+        # a body over its limit stays a reached cap
+        if ($e.kind == "limit") {
+            throw Error{
+                kind: "limit",
+                message: "seafile: POST " + transferName($link) + ": " + $e.message
+            };
+        }
         fail("POST " + transferName($link) + ": " + $e.message);
     }
     return $r;
@@ -2197,7 +2255,7 @@ func postParts(
     extra as map of string to string) {
     def r as http.Response init postRaw($c, $link, $parts, $extra);
     if (not isOk($r.status)) {
-        fail("POST " + transferName($link) + ": " + failureText($r.status, $r.statusText, $r.body));
+        failHttp("POST " + transferName($link), $r.status, $r.statusText, $r.body, "");
     }
     return $r;
 }
@@ -2618,8 +2676,11 @@ func chunked(
         def stale as bool init $first and $r.status == 400 and not $restarted;
         if ($stale and $c.repoToken) {
             if (strings.contains($name, "\"")) {
-                fail("POST " + transferName($link) + ": " +
-                    failureText($r.status, $r.statusText, $r.body) +
+                failHttp(
+                    "POST " + transferName($link),
+                    $r.status,
+                    $r.statusText,
+                    $r.body,
                     " (a stale temp file a library token cannot drop)");
             }
             return putHeld($c, $repoId, $path, $data, $replace, 0);
@@ -2634,8 +2695,7 @@ func chunked(
             continue;
         }
         if (not isOk($r.status)) {
-            fail("POST " + transferName($link) + ": " +
-                failureText($r.status, $r.statusText, $r.body));
+            failHttp("POST " + transferName($link), $r.status, $r.statusText, $r.body, "");
         }
         if ($end == $total) {
             return uploaded($r, $link, $dir);
@@ -2673,7 +2733,7 @@ export func rename(c as Client, repoId as string, path as string, name as string
         $r = sendRaw($c, "POST", $route, $body, "application/json");
     }
     if (not isOk($r.status)) {
-        fail("POST " + $route + ": " + failureText($r.status, $r.statusText, $r.body));
+        failHttp("POST " + $route, $r.status, $r.statusText, $r.body, "");
     }
     return joined(parentOf($path), field(decoded($r.body, "POST " + $route), "/obj_name"));
 }
@@ -3065,8 +3125,11 @@ func historyPages(c as Client, repoId as string, path as string, limit as int) {
     def pages as int init 0;
     while (true) {
         if ($pages >= $limit) {
-            fail("GET " + $base + param("path", $path) + ": more than " + convert.toString($limit) +
-                " pages");
+            throw Error{
+                kind: "limit",
+                message: "seafile: GET " + $base + param("path", $path) + ": more than " +
+                    convert.toString($limit) + " pages"
+            };
         }
         def route as string init $base + param("path", $at);
         if ($next != "") {
@@ -3736,8 +3799,11 @@ func trashPages(c as Client, repoId as string, path as string, limit as int) {
     def pages as int init 0;
     while (true) {
         if ($pages >= $limit) {
-            fail("GET " + V21 + "/repos/" + $repoId + "/trash/: more than " +
-                convert.toString($limit) + " pages");
+            throw Error{
+                kind: "limit",
+                message: "seafile: GET " + V21 + "/repos/" + $repoId + "/trash/: more than " +
+                    convert.toString($limit) + " pages"
+            };
         }
         def page as TrashPage init trash($c, $repoId, $path, $cursor);
         $pages = $pages + 1;

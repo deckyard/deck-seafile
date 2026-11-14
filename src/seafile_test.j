@@ -197,11 +197,22 @@ func partsOf(s as Seen) {
 /**
  * The message of the deck's error.
  *
+ * @param e {SeafileError} the error
+ * @return {string} its message
+ */
+func messageOf(e as SeafileError) {
+    testing.assertEqual($e.kind, ERROR_KIND);
+    return $e.message;
+}
+
+/**
+ * The message of a caught reached-cap error, checking its kind.
+ *
  * @param e {Error} the error
  * @return {string} its message
  */
-func messageOf(e as Error) {
-    testing.assertEqual($e.kind, ERROR_KIND);
+func limitOf(e as Error) {
+    testing.assertEqual($e.kind, "limit");
     return $e.message;
 }
 
@@ -776,9 +787,9 @@ func testGetCapAndRefusals() {
         get($c, REPO, "/a", 4);
         missed();
     } catch (e) {
-        testing.assertContains(messageOf($e), "exceeds 4 bytes");
-        testing.assertContains(messageOf($e), "GET /seafhttp/files/...");
-        testing.assertFalse(strings.contains(messageOf($e), "tok-2"));
+        testing.assertContains(limitOf($e), "exceeds 4 bytes");
+        testing.assertContains(limitOf($e), "GET /seafhttp/files/...");
+        testing.assertFalse(strings.contains(limitOf($e), "tok-2"));
     }
     try {
         get($c, REPO, "/a", 0);
@@ -1846,7 +1857,7 @@ func testPagingRefusesPastTheLimit() {
         missed();
     } catch (e) {
         testing.assertContains(
-            messageOf($e),
+            limitOf($e),
             "GET /api/v2.1/repos/" + REPO + "/file/history/?path=%2Fa.txt: more than 2 pages");
     }
     try {
@@ -1854,7 +1865,7 @@ func testPagingRefusesPastTheLimit() {
         missed();
     } catch (e) {
         testing.assertContains(
-            messageOf($e),
+            limitOf($e),
             "GET /api/v2.1/repos/" + REPO + "/trash/: more than 2 pages");
     }
     testing.assertEqual(len(finish($f)), 4);
@@ -2457,7 +2468,7 @@ func testReplyLimit() {
         libraries(withReplyLimit(authed($f), 300), "");
         missed();
     } catch (e) {
-        testing.assertContains(messageOf($e), "exceeds 300 bytes");
+        testing.assertContains(limitOf($e), "exceeds 300 bytes");
     }
     finish($f);
 }
@@ -2512,4 +2523,22 @@ func testAccessorsTolerateOddValues() {
     testing.assertEqual(field($d, "/b"), "3.9");
     testing.assertEqual(len(items($d, "/l")), 2);
     testing.assertEqual(len(items($d, "/a")), 0);
+}
+
+# A refused request is a SeafileError with the status; a local check has 0.
+func testARefusalIsASeafileError() {
+    try {
+        failHttp("GET /api2/repos/", 443, "", '{"error_msg":"Out of quota."}', "");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, ERROR_KIND);
+        testing.assertEqual($e.status, 443);
+        testing.assertEqual($e.message, "seafile: GET /api2/repos/: HTTP 443: Out of quota.");
+    }
+    try {
+        fail("local");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.status, 0);
+    }
 }

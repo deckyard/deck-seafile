@@ -49,8 +49,11 @@ an `Entry` with it.
 
 ## Errors
 
-Every failure is `Error{kind: "seafile"}`. A refusal names the request, the
-HTTP status and the server's reason (`error_msg`, `detail`, `error` or
+Every failure is a `seafile.SeafileError` (kind `"seafile"`), except a reached
+cap: a body over its limit or a paged walk past its page limit is
+`Error{kind: "limit"}`. The `status` field holds the HTTP status of a refusal
+(0 otherwise). A refusal names the request, the HTTP status and the server's
+reason (`error_msg`, `detail`, `error` or
 `non_field_errors`):
 
 ```text
