@@ -12,6 +12,7 @@
  * link the fake hands out points back at it.
  */
 use httpd;
+use net;
 use task;
 use testing;
 
@@ -930,6 +931,54 @@ func testGetRefusesAForeignLinkBeforeFetching() {
         testing.assertContains(
             messageOf($e),
             "the server handed out a link to \"http://127.0.0.2:1\"");
+    }
+    finish($f);
+}
+
+/**
+ * A loopback address nothing listens on.
+ *
+ * @return {string} `127.0.0.1:port` of a listener already closed
+ */
+func closedAddress() {
+    def l as net.Listener init net.listen("127.0.0.1:0");
+    def address as string init net.address($l);
+    net.close($l);
+    return $address;
+}
+
+# A server that cannot be reached is the transport's net.NetError, passed on
+# with its fields, not a SeafileError.
+func testTransportFailurePassesOn() {
+    def c as Client init withToken(client("http://" + closedAddress()), "t0k3n");
+    try {
+        call($c, "GET", "/api2/server-info/", "");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "net");
+        def n as net.NetError init $e;
+        testing.assertEqual($n.reason, "refused");
+        testing.assertEqual($n.op, "connect");
+        testing.assertFalse($n.sent);
+        testing.assertFalse($n.replied);
+        testing.assertFalse(strings.contains($n.message, "t0k3n"));
+    }
+}
+
+# A transfer link nothing answers on is a net.NetError too, and its message
+# does not carry the link's token.
+func testTransferFailurePassesOn() {
+    def dead as string init "http://" + closedAddress();
+    def f as Fake init fake([ok('"' + $dead + '/seafhttp/files/l1nk-t0k3n/a"')]);
+    try {
+        get(withFileServer(impatient($f), $dead), REPO, "/a", 0);
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "net");
+        def n as net.NetError init $e;
+        testing.assertEqual($n.reason, "refused");
+        testing.assertFalse($n.sent);
+        testing.assertFalse(strings.contains($n.message, "l1nk-t0k3n"));
     }
     finish($f);
 }
@@ -2540,5 +2589,108 @@ func testARefusalIsASeafileError() {
         missed();
     } catch (e) {
         testing.assertEqual($e.status, 0);
+    }
+}
+
+/**
+ * Serve a loopback listener with one canned answer per connection (or none,
+ * to let the client wait), until the listener is closed.
+ *
+ * @param l {net.Listener} the listener
+ * @param answer {string} what to write after reading the request; "" to
+ *   write nothing and keep the connection open
+ * @return {task of int} the server task; it returns the connections served
+ */
+func serveCanned(l as net.Listener, answer as string) {
+    return spawn {
+        def served as int init 0;
+        def open as list of net.Conn init [];
+        while (true) {
+            def conn as net.Conn;
+            try {
+                $conn = net.accept($l);
+            } catch (e) {
+                for (def held in $open) {
+                    net.close($held);
+                }
+                return $served;
+            }
+            $served = $served + 1;
+            net.readBytes($conn, 65536);
+            if ($answer == "") {
+                $open[] = $conn;
+            } else {
+                net.writeBytes($conn, convert.bytesFromString("utf-8", $answer));
+                net.close($conn);
+            }
+        }
+        return $served;
+    };
+}
+
+# A server that does not answer in time is kind "timeout", passed on.
+func testTimeoutPassesOn() {
+    def l as net.Listener init net.listen("127.0.0.1:0");
+    def t as task of int init serveCanned($l, "");
+    try {
+        call(
+            withTimeout(withToken(client("http://" + net.address($l)), "t0k3n"), 200),
+            "GET",
+            "/api2/server-info/",
+            "");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "timeout");
+    }
+    net.close($l);
+    task.wait($t);
+}
+
+# A transfer link that answers nothing in time is kind "timeout" too, and the
+# message does not carry the link's token.
+func testTransferTimeoutPassesOn() {
+    def l as net.Listener init net.listen("127.0.0.1:0");
+    def t as task of int init serveCanned($l, "");
+    def silent as string init "http://" + net.address($l);
+    def f as Fake init fake([ok('"' + $silent + '/seafhttp/files/l1nk-t0k3n/a"')]);
+    try {
+        get(withFileServer(withTimeout(authed($f), 200), $silent), REPO, "/a", 0);
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "timeout");
+        testing.assertFalse(strings.contains($e.message, "l1nk-t0k3n"));
+    }
+    finish($f);
+    net.close($l);
+    task.wait($t);
+}
+
+# A reply cut short is kind "closed", passed on.
+func testClosedPassesOn() {
+    def l as net.Listener init net.listen("127.0.0.1:0");
+    def t as task of int init serveCanned(
+        $l,
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n\{");
+    try {
+        call(
+            withTimeout(withToken(client("http://" + net.address($l)), "t0k3n"), 2000),
+            "GET",
+            "/api2/server-info/",
+            "");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "closed");
+    }
+    net.close($l);
+    task.wait($t);
+}
+
+# A JSON reply past the decoder's nesting cap is a reached cap.
+func testDeepReplyIsALimit() {
+    try {
+        decoded(strings.repeat("[", 1001) + strings.repeat("]", 1001), "GET /api2/x/");
+        missed();
+    } catch (e) {
+        testing.assertEqual($e.kind, "limit");
     }
 }

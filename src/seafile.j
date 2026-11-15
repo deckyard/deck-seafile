@@ -18,8 +18,12 @@
  * A `Client` authenticates with an account token (`login`, `withToken`) or
  * a library API token (`withRepoToken`, the `via-repo-token` endpoints,
  * limited to one library). Every failure is a `SeafileError` (kind
- * "seafile", with the HTTP `status`), except a reached cap (a body over its
- * limit, too many pages): kind "limit".
+ * "seafile", with the HTTP `status`), except the generic kinds: a reached cap
+ * (a body over its limit, too many pages, a reply nested past the JSON
+ * decoder's cap) is kind "limit", a reply that does not come in time
+ * "timeout", a connection closed mid-reply "closed", a cancelled task
+ * "cancelled", and a server that cannot be reached throws the transport's
+ * `net.NetError` (kind "net"), passed on unchanged.
  * Transfers take two steps: an upload or download link from the API, then
  * the `/seafhttp/...` URL, which carries its own token; no `Authorization`
  * goes there, and a link on another origin than the base URL is refused
@@ -41,6 +45,7 @@ use convert;
 use json;
 use lists;
 use maps;
+use net;
 use regex;
 use strings;
 use time;
@@ -1193,6 +1198,13 @@ func sendRaw(
     try {
         $r = http.send($method, $c.url + $route, $headers, $body, $o);
     } catch (e) {
+        if ($e.kind == "net") {
+            throw netOn($e, $c.url + $route, $route);
+        }
+        # a deadline, a closed connection or a cancellation goes on as it is
+        if (isGeneric($e.kind) and $e.kind != "limit") {
+            throw $e;
+        }
         # a body over its limit stays a reached cap
         if ($e.kind == "limit") {
             throw Error{
@@ -1203,6 +1215,37 @@ func sendRaw(
         fail($method + " " + $route + ": " + $e.message);
     }
     return $r;
+}
+
+/**
+ * Whether an error kind is one every library shares, which the deck passes
+ * on instead of rewrapping.
+ *
+ * @param kind {string} the caught error's kind
+ * @return {bool} true for "limit", "timeout", "closed", "net", "cancelled"
+ */
+func isGeneric(kind as string) {
+    return $kind == "limit" or $kind == "timeout" or $kind == "closed" or $kind == "net" or
+        $kind == "cancelled";
+}
+
+/**
+ * A transport failure to pass on: the `net.NetError` as it is, its fields
+ * intact, unless its message holds the URL (a transfer link carries its
+ * token); then the same error with the URL as `shown`.
+ *
+ * @param e {net.NetError} the error, kind "net"
+ * @param url {string} the URL the request went to
+ * @param shown {string} how a message may name it
+ * @return {net.NetError} the error to throw
+ */
+func netOn(e as net.NetError, url as string, shown as string) {
+    if (not strings.contains($e.message, $url)) {
+        return $e;
+    }
+    def out as net.NetError init $e;
+    $out.message = strings.replace($e.message, $url, $shown);
+    return $out;
 }
 
 /**
@@ -1306,6 +1349,10 @@ func decoded(body as string, what as string) {
     try {
         return json.decode($body);
     } catch (e) {
+        # the decoder's nesting and node caps are reached caps
+        if (isGeneric($e.kind)) {
+            throw $e;
+        }
         fail($what + ": the reply is not JSON");
     }
     return json.decode("null");
@@ -1381,9 +1428,11 @@ func ensureRoute(path as string) {
  *   `/api/v2.1/`, query string included, e.g. `/api2/repos/<id>/owner/`
  * @param body {string} the JSON body; "" for none
  * @return {json.Value} the reply; JSON `null` when it is empty
- * @throws {Error} kind `"seafile"` on a bad path, a network failure, a reply
- *   that is not 2xx (the message names the status and the server's reason),
- *   a 2xx reply that is not JSON, or a reply over the client's reply limit
+ * @throws {Error} kind `"seafile"` on a bad path, a reply that is not 2xx
+ *   (the message names the status and the server's reason) or a 2xx reply
+ *   that is not JSON; kind "limit" for a reply over the client's reply
+ *   limit; a `net.NetError` (kind "net") when the server cannot be reached;
+ *   kind "timeout" or "closed" when a reply does not come or is cut short
  * @example
  *   def h as json.Value init seafile.call($c, "GET", "/api2/repos/" + $id + "/history-limit/", "");
  */
@@ -1524,6 +1573,13 @@ export func login(c as Client, username as string, password as string, otp as st
     try {
         $r = http.send("POST", $c.url + $route, $headers, $body, $o);
     } catch (e) {
+        if ($e.kind == "net") {
+            throw netOn($e, $c.url + $route, $route);
+        }
+        # a deadline, a closed connection or a cancellation goes on as it is
+        if (isGeneric($e.kind) and $e.kind != "limit") {
+            throw $e;
+        }
         # a body over its limit stays a reached cap
         if ($e.kind == "limit") {
             throw Error{kind: "limit", message: "seafile: POST " + $route + ": " + $e.message};
@@ -2112,8 +2168,9 @@ func withQuery(link as string, query as string) {
  *   negative for no limit
  * @return {bytes} the content
  * @throws {Error} kind `"seafile"` on a bad path, when it does not exist, on
- *   a link on a foreign origin, on a refusal or network failure, or for a
- *   file over `maxBytes`
+ *   a link on a foreign origin, on a refusal, or for a file over `maxBytes`;
+ *   a `net.NetError` (kind "net") when the server cannot be reached;
+ *   kind "timeout" or "closed" when a reply does not come or is cut short
  */
 export func get(c as Client, repoId as string, path as string, maxBytes as int) {
     checkItem($path, "downloaded");
@@ -2133,6 +2190,13 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
     try {
         $r = http.requestWithBytes("GET", $link, {"Accept": "*/*"}, "", idleMs($c), $cap, $c.tls);
     } catch (e) {
+        if ($e.kind == "net") {
+            throw netOn($e, $link, transferName($link));
+        }
+        # a deadline, a closed connection or a cancellation goes on as it is
+        if (isGeneric($e.kind) and $e.kind != "limit") {
+            throw $e;
+        }
         # a body over its limit stays a reached cap
         if ($e.kind == "limit") {
             throw Error{
@@ -2227,6 +2291,13 @@ func postRaw(
             replyCap($c),
             $c.tls);
     } catch (e) {
+        if ($e.kind == "net") {
+            throw netOn($e, $link, transferName($link));
+        }
+        # a deadline, a closed connection or a cancellation goes on as it is
+        if (isGeneric($e.kind) and $e.kind != "limit") {
+            throw $e;
+        }
         # a body over its limit stays a reached cap
         if ($e.kind == "limit") {
             throw Error{
@@ -2334,7 +2405,8 @@ func uploadParts(dir as string, name as string, data as bytes, replace as bool) 
  *   `mtime`, `permission` and `modifier` are not reported
  * @throws {Error} kind `"seafile"` on a bad path, a name with `\`, an empty
  *   file named with `"`, a missing folder, a link on a foreign origin, or a
- *   refusal or network failure
+ *   refusal; a `net.NetError` (kind "net") when the server cannot be reached;
+ *   kind "timeout" or "closed" when a reply does not come or is cut short
  */
 export func put(c as Client, repoId as string, path as string, data as bytes, replace as bool) {
     checkItem($path, "a file");

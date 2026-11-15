@@ -51,7 +51,14 @@ an `Entry` with it.
 
 Every failure is a `seafile.SeafileError` (kind `"seafile"`), except a reached
 cap: a body over its limit or a paged walk past its page limit is
-`Error{kind: "limit"}`. The `status` field holds the HTTP status of a refusal
+`Error{kind: "limit"}`, as is a reply nested past the JSON decoder's cap; a
+reply that does not come within the timeout is kind `"timeout"`, a connection
+closed mid-reply kind `"closed"`, a cancelled task kind `"cancelled"`; and a
+server that cannot be reached (refused, reset,
+unreachable, no DNS answer, a failed TLS handshake, closed before any reply)
+throws the `net.NetError` (kind `"net"`) of the transport, unchanged, with its
+`reason`, `op`, `sent` and `replied` fields. A request that was not `sent`
+never reached the server. The `status` field holds the HTTP status of a refusal
 (0 otherwise). A refusal names the request, the HTTP status and the server's
 reason (`error_msg`, `detail`, `error` or
 `non_field_errors`):

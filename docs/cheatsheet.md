@@ -11,8 +11,9 @@ import "@deckyard/seafile/" as seafile;
 ```
 
 Every function that sends a request throws a `SeafileError` (kind `"seafile"`)
-when it fails, or `Error{kind: "limit"}` when a body or a paged walk passes its
-cap. A `repoId` is a library id (a UUID) from `libraries`; a `path` is
+when it fails, `Error{kind: "limit"}` when a body or a paged walk passes its
+cap, `"timeout"` or `"closed"` when a reply does not come or is cut short, or
+`net.NetError` (kind `"net"`) when the server cannot be reached. A `repoId` is a library id (a UUID) from `libraries`; a `path` is
 absolute in its library (`/docs/a.txt`, `/` for the root). Times are seconds
 since the epoch. "Account" marks a verb a library API token client
 (`withRepoToken`) refuses before sending anything.
