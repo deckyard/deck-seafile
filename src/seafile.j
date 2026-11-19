@@ -599,7 +599,8 @@ func trimSlashes(path as string) {
 /**
  * The parts of an absolute URL, checked: scheme `http`/`https`
  * (lower-cased), a host of letters, digits, `.`, `-`, `_` or a bracketed
- * IPv6 literal, a port 1-65535, no user, no control characters or spaces.
+ * IPv6 literal, a port 1-65535, nothing else in the authority, no user, no
+ * control characters or spaces.
  *
  * @param url {string} the URL
  * @param what {string} what it is, for the error message
@@ -612,7 +613,16 @@ func urlParts(url as string, what as string) {
     if (not strings.contains($url, "://")) {
         fail("a " + $what + " is http:// or https://, got " + shown($url));
     }
-    def u as uri.Uri init uri.parse($url);
+    def u as uri.Uri;
+    try {
+        $u = uri.parse($url);
+    } catch (e) {
+        # `uri` refuses a malformed port or IP literal (jennifer 0.27.0)
+        if ($e.kind != "uri") {
+            throw $e;
+        }
+        fail("a " + $what + " is malformed, got " + shown($url));
+    }
     $u.scheme = strings.lower($u.scheme);
     $u.host = strings.lower($u.host);
     if ($u.scheme != "http" and $u.scheme != "https") {
@@ -637,6 +647,14 @@ func urlParts(url as string, what as string) {
             convert.toInt($u.port) > 65535) {
             fail("a " + $what + " port is 1 to 65535, got " + shown($url));
         }
+    }
+    # Nothing between the host and the port or the path: `https://[::1]x`.
+    def authority as string init $u.host;
+    if ($u.port != "") {
+        $authority = $authority + ":" + $u.port;
+    }
+    if (strings.lower($rest) != $authority) {
+        fail("a " + $what + " names a host, got " + shown($url));
     }
     return $u;
 }
@@ -2228,7 +2246,14 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
 func transferName(link as string) {
     def kept as list of string init [];
     def take as int init 1;
-    for (def segment in strings.split(uri.parse($link).path, "/")) {
+    def path as string init "";
+    try {
+        $path = uri.parse($link).path;
+    } catch (e) {
+        # an error message must not fail on the link it names
+        return "/...";
+    }
+    for (def segment in strings.split($path, "/")) {
         if ($segment == "") {
             continue;
         }

@@ -921,6 +921,42 @@ func testTransferLinksOnIpv6() {
     }
 }
 
+# A malformed authority is the deck's own kind on every interpreter: newer
+# `uri.parse` throws kind "uri" for some, older ones split them leniently.
+func testMalformedServerUrl() {
+    for (def bad in [
+        "https://x:8x",
+        "https://x:99999",
+        "https://x:443x/",
+        "https://[::1",
+        "https://[::1]x",
+        "https://[::1]x:443/seafile",
+        "https://x:-1"
+    ]) {
+        try {
+            client($bad);
+            missed();
+        } catch (e) {
+            testing.assertContains(messageOf($e), "base URL");
+        }
+        try {
+            withFileServer(client("x"), $bad);
+            missed();
+        } catch (e) {
+            testing.assertContains(messageOf($e), " URL ");
+        }
+        def c as Client init client("http://127.0.0.1:1");
+        try {
+            transferLink($c, json.decode("\"" + $bad + "\""), "GET x");
+            missed();
+        } catch (e) {
+            testing.assertContains(messageOf($e), "transfer link");
+        }
+    }
+    # an error message naming such a link does not throw itself
+    testing.assertTrue(strings.endsWith(transferName("https://[::1"), "/..."));
+}
+
 func testGetRefusesAForeignLinkBeforeFetching() {
     # Only the API request reaches the fake; the link is refused.
     def f as Fake init fake([ok('"http://127.0.0.2:1/seafhttp/files/x/a"')]);
