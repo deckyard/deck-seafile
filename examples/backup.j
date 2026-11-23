@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.26.0
+# pragma-jennifer-version: >=0.27.0
 # pragma-jennifer-capability: net
 
 /**
@@ -64,7 +64,7 @@ for (def d in seafile.listDir($c, $repo, "/backups", "dir", false)) {
 }
 $names = lists.sort($names);
 if (len($names) > $keep) {
-    def old as list of string init lists.slice($names, 0, len($names) - $keep);
+    def old as list of string init $names[..len($names) - $keep];
     seafile.removeItems($c, $repo, "/backups", $old);
     io.printf("removed %d old folders\n", len($old));
 }

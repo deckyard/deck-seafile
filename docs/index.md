@@ -82,7 +82,7 @@ interpreter's `http` module does not stream yet.
 
 ## Requirements
 
-Jennifer 0.26.0 or newer, the default `jennifer` binary (not
+Jennifer 0.27.0 or newer, the default `jennifer` binary (not
 `jennifer-tiny`), and the `net` capability. Tested against Seafile 13.0
 Community Edition; `lockFile`, `unlockFile` and `search` need the
 Professional edition.

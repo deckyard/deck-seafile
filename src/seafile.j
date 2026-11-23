@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.26.0
+# pragma-jennifer-version: >=0.27.0
 # pragma-jennifer-capability: net
 
 /**
@@ -42,6 +42,7 @@
  *   }
  */
 use convert;
+use encoding;
 use json;
 use lists;
 use maps;
@@ -566,7 +567,7 @@ func plain(text as string, most as int) {
     def cut as string init $text;
     def more as string init "";
     if (len($text) > $most) {
-        $cut = strings.substring($text, 0, $most);
+        $cut = $text[..$most];
         $more = "...";
     }
     return regex.replace("[^ -~]", $cut, "?") + $more;
@@ -591,7 +592,7 @@ func shown(text as string) {
 func trimSlashes(path as string) {
     def out as string init $path;
     while (strings.endsWith($out, "/")) {
-        $out = strings.substring($out, 0, len($out) - 1);
+        $out = $out[..len($out) - 1];
     }
     return $out;
 }
@@ -628,14 +629,14 @@ func urlParts(url as string, what as string) {
     if ($u.scheme != "http" and $u.scheme != "https") {
         fail("a " + $what + " is http:// or https://, got " + shown($url));
     }
-    def rest as string init strings.substring($url, strings.indexOf($url, "://") + 3, len($url));
+    def rest as string init $url[strings.indexOf($url, "://") + 3..len($url)];
     def cut as int init len($rest);
     for (def stop in ["/", "?", "#"]) {
         if (strings.contains($rest, $stop) and strings.indexOf($rest, $stop) < $cut) {
             $cut = strings.indexOf($rest, $stop);
         }
     }
-    $rest = strings.substring($rest, 0, $cut);
+    $rest = $rest[..$cut];
     if (strings.contains($rest, "@")) {
         fail("a " + $what + " holds no user or password, got " + shown($url));
     }
@@ -706,9 +707,9 @@ func normalUrl(address as string) {
     }
     def path as string init trimSlashes($u.path);
     if (strings.endsWith($path, V21)) {
-        $path = trimSlashes(strings.substring($path, 0, len($path) - len(V21)));
+        $path = trimSlashes($path[..len($path) - len(V21)]);
     } elseif (strings.endsWith($path, API2)) {
-        $path = trimSlashes(strings.substring($path, 0, len($path) - len(API2)));
+        $path = trimSlashes($path[..len($path) - len(API2)]);
     }
     return $u.scheme + "://" + $u.host + $port + $path;
 }
@@ -994,7 +995,7 @@ func checkPath(path as string) {
     if ($path == "/") {
         return $path;
     }
-    for (def segment in strings.split(strings.substring($path, 1, len($path)), "/")) {
+    for (def segment in strings.split($path[1..len($path)], "/")) {
         if ($segment == "" or $segment == "." or $segment == "..") {
             fail("a path has no empty, . or .. segments, got " + shown($path));
         }
@@ -1074,7 +1075,7 @@ func parentOf(path as string) {
     if ($at <= 0) {
         return "/";
     }
-    return strings.substring($path, 0, $at);
+    return $path[..$at];
 }
 
 /**
@@ -1084,7 +1085,7 @@ func parentOf(path as string) {
  * @return {string} the name
  */
 func nameOf(path as string) {
-    return strings.substring($path, strings.lastIndexOf($path, "/") + 1, len($path));
+    return $path[strings.lastIndexOf($path, "/") + 1..len($path)];
 }
 
 /**
@@ -1424,7 +1425,7 @@ func ensureRoute(path as string) {
     }
     def route as string init $path;
     if (strings.contains($route, "?")) {
-        $route = strings.substring($route, 0, strings.indexOf($route, "?"));
+        $route = $route[..strings.indexOf($route, "?")];
     }
     if (strings.contains($route, "//") or strings.contains($path, "#") or
         regex.matches("[\\x00-\\x20\\x7f]", $path)) {
@@ -1906,7 +1907,7 @@ func typeLetter(type as string) {
     if ($type == "") {
         return "";
     }
-    return strings.substring(checkOneOf($type, ["file", "dir"], "listing type"), 0, 1);
+    return checkOneOf($type, ["file", "dir"], "listing type")[..1];
 }
 
 /**
@@ -2107,7 +2108,7 @@ export func mkdir(c as Client, repoId as string, path as string, parents as bool
 func mkdirParents(c as Client, repoId as string, path as string) {
     def at as string init "/";
     def probing as bool init true;
-    for (def segment in strings.split(strings.substring($path, 1, len($path)), "/")) {
+    for (def segment in strings.split($path[1..len($path)], "/")) {
         $at = joined($at, $segment);
         if ($probing) {
             $probing = isDir($c, $repoId, $at);
@@ -2227,7 +2228,7 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
     if (not isOk($r.status)) {
         def text as string init "";
         try {
-            $text = convert.stringFromBytes("utf-8", $r.body);
+            $text = encoding.decode("utf-8", $r.body);
         } catch (e) {
             $text = "";
         }
@@ -2266,7 +2267,7 @@ func transferName(link as string) {
         }
     }
     if ($take == 1 and len($kept) > 1) {
-        $kept = lists.slice($kept, 0, 1);
+        $kept = $kept[..1];
     }
     return "/" + strings.join($kept, "/") + "/...";
 }
@@ -2570,7 +2571,7 @@ func dropTemp(c as Client, link as string, path as string, held as int) {
                 "file",
                 $name,
                 "application/octet-stream",
-                convert.bytesFromString("utf-8", "x"))
+                encoding.encode("utf-8", "x"))
         ],
         {
             "Content-Range": "bytes " + $at + "-" + $at + "/" + convert.toString($held + 1),
