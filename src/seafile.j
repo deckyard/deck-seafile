@@ -68,6 +68,10 @@ export def const DOWNLOAD_LIMIT as int init 67108864;
  */
 export def const REPLY_LIMIT as int init 67108864;
 
+# The largest int: the cap passed on for "no limit" (`math.MAX_INT` from
+# Jennifer 0.28.0 on; written out so 0.27.0 runs it too).
+def const NO_LIMIT as int init 9223372036854775807;
+
 /** The most retries `withRetries` accepts. */
 export def const MAX_RETRIES as int init 10;
 
@@ -1161,11 +1165,13 @@ func baseHeaders(c as Client) {
  * The reply cap `http` takes.
  *
  * @param c {Client} the client
- * @return {int} bytes; negative for none
+ * @return {int} bytes; `NO_LIMIT` for none
  */
 func replyCap(c as Client) {
     if ($c.replyLimit == 0) {
         return REPLY_LIMIT;
+    } elseif ($c.replyLimit < 0) {
+        return NO_LIMIT;
     }
     return $c.replyLimit;
 }
@@ -2204,6 +2210,8 @@ export func get(c as Client, repoId as string, path as string, maxBytes as int) 
     def cap as int init $maxBytes;
     if ($cap == 0) {
         $cap = DOWNLOAD_LIMIT;
+    } elseif ($cap < 0) {
+        $cap = NO_LIMIT;
     }
     def r as http.BytesResponse;
     try {

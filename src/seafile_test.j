@@ -279,6 +279,8 @@ func testClientSettings() {
     $c = withCaCert($c, encoding.encode("utf-8", "PEM"));
     testing.assertFalse($c.tls.skipVerify);
     testing.assertEqual(withReplyLimit($c, 10).replyLimit, 10);
+    testing.assertEqual(replyCap(client("x")), REPLY_LIMIT);
+    testing.assertEqual(replyCap(withReplyLimit(client("x"), -1)), NO_LIMIT);
     def r as Client init withRepoToken($c, REPO, "abc");
     testing.assertTrue($r.repoToken);
     testing.assertEqual($r.repoId, REPO);
