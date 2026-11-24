@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://deckyard.github.io/deck-seafile/)
 [![release](https://img.shields.io/github/v/release/deckyard/deck-seafile)](https://github.com/deckyard/deck-seafile/releases/latest)
 
-A client for the Web API of a self-hosted [Seafile](https://www.seafile.com/)
+A client for the Web API of a self-hosted [Seafile™](https://www.seafile.com/)
 server, for [Jennifer](https://jennifer-lang.dev/) programs: libraries
 (incl. encrypted), files and folders (list, download, upload, resumable
 upload, rename, copy and move across libraries, history, revert), user and
@@ -78,3 +78,10 @@ LGPL-3.0-only, see [LICENSE](LICENSE). Copyright (C) 2026 mplx &lt;mplx@jennifer
 
 `tools/check-headers.sh` checks every source file's SPDX header against
 `deck.toml`.
+
+## Trademarks
+
+Seafile™ and other product and company names may be trademarks of their
+respective owners. They are used only to identify the products this deck
+works with. This deck is an independent project, not affiliated with,
+sponsored or endorsed by Seafile Ltd.

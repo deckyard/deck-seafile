@@ -57,7 +57,7 @@ io.printf("stored as %s\n", $e.path);
 
 `put` asks for an upload link for the folder, then posts a multipart form
 (`parent_dir`, `replace`, `file`) to it. The folder must exist. With
-`replace` an existing file is overwritten; without it Seafile stores the
+`replace` an existing file is overwritten; without it Seafile™ stores the
 upload as `report (1).pdf`, and the returned `Entry` shows that name.
 
 `update` overwrites an existing file through its update link and returns
@@ -127,7 +127,7 @@ with `resume` false.
 With an account token a first chunk that answers HTTP 400 (a temp file
 appeared or changed after the offset was read) makes `putResumable` read
 the offset again, drop the temp file and restart at 0, once; a second 400
-throws. A name that is not NFC (macOS-style decomposed) can hit this every
+throws. A name that is not NFC (macOS™-style decomposed) can hit this every
 time: the fileserver keys the temp file by the normalised name, while
 `file-uploaded-bytes` looks up the name as given and reports 0.
 

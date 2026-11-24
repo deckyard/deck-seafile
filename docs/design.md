@@ -6,7 +6,7 @@
 ## Scope
 
 The deck is a client for the Web API (`/api2` and `/api/v2.1`) of a
-self-hosted Seafile server: server and account info; libraries, encrypted
+self-hosted Seafile™ server: server and account info; libraries, encrypted
 ones included; files and folders by library id and path (list, detail,
 mkdir, download, upload, resumable chunked upload, update, rename, copy,
 move, remove, lock, history, revert); async batch copy and move; user and
@@ -135,7 +135,7 @@ Generic kinds:
 - Transport failures are tested against a closed loopback port, for an API
   request and for a transfer link.
 - Validated live on 2026-11-06 against Seafile 13.0.29 Community Edition in
-  Docker over loopback HTTP: every export except `search` and
+  Docker™ over loopback HTTP: every export except `search` and
   `lockFile` / `unlockFile` (Pro only; Community answers 403) and the
   legacy `Token` scheme against a server before 11.0. Both examples ran.
   The upload and temporary-file fixes were re-tested live on the C

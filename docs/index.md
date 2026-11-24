@@ -3,7 +3,7 @@
 
 # @deckyard/seafile
 
-A client for the Web API of a self-hosted [Seafile](https://www.seafile.com/)
+A client for the Web API of a self-hosted [Seafile™](https://www.seafile.com/)
 server (`/api2` and `/api/v2.1`). Typed functions cover server and account
 info; libraries (list, create incl. encrypted, rename, remove, decrypt);
 files and folders (list, detail, mkdir, download, upload, resumable upload,
@@ -86,3 +86,10 @@ Jennifer 0.27.0 or newer, the default `jennifer` binary (not
 `jennifer-tiny`), and the `net` capability. Tested against Seafile 13.0
 Community Edition; `lockFile`, `unlockFile` and `search` need the
 Professional edition.
+
+## Trademarks
+
+Seafile™ and other product and company names may be trademarks of their
+respective owners. They are used only to identify the products this deck
+works with. This deck is an independent project, not affiliated with,
+sponsored or endorsed by Seafile Ltd.

@@ -21,7 +21,7 @@ seafile.changeShare($c, $id, "/", "user", "bob@example.com", "rw");
 seafile.unshare($c, $id, "/projects", "group", "3");
 ```
 
-The user id is what `Account.email` shows: an e-mail address, or on Seafile
+The user id is what `Account.email` shows: an e-mail address, or on Seafile™
 13 a virtual `<hex>@auth.local` id whose address is `contactEmail`. Sharing
 with the contact address fails with `User ... not found.` The server answers a
 share it cannot make (unknown user, already shared) with a `failed` list;

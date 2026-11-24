@@ -3,7 +3,7 @@
 
 # Trash and history
 
-Seafile keeps a library's history as commits. A deleted file stays in an
+Seafile™ keeps a library's history as commits. A deleted file stays in an
 older commit until the history limit drops it; the trash lists those items.
 
 ## The trash

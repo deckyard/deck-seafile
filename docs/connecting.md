@@ -42,7 +42,7 @@ io.printf("%s: %d of %d bytes\n", $a.email, $a.usage, $a.total);
 leading digits of a string (`"22020651,"`, as the reference shows them).
 
 Requests carry `Authorization: Bearer <token>`. Servers before 11.0 want
-`Token <token>`: `withLegacyAuth` switches. Seafile 13 accepts both.
+`Token <token>`: `withLegacyAuth` switches. Seafile™ 13 accepts both.
 
 Credentials go over plain `http://` only to a loopback host (`localhost`,
 `127.0.0.0/8`, `[::1]`). For any other `http://` host each request (and
