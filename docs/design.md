@@ -167,7 +167,7 @@ permission).
 - The bundled `http`, `multipart` and `uri` modules; `http`'s body-only
   `maxBytes` cap.
 - `json.typeOf` returning `missing` for an unresolved pointer (0.26.0).
-- Floor `>=0.27.0`: the UTF-8 codecs of `encoding.encode` / `decode` and
+- Floor `>=0.28.0` (the calls 0.29.0 removes are replaced by their 0.28.0 forms): the UTF-8 codecs of `encoding.encode` / `decode` and
   `strings.replicate` arrived in 0.27.0.
 - Thrown error structs and lint's L104 for `SeafileError`; caps as kind
   `"limit"`.

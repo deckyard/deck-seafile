@@ -58,7 +58,7 @@ without `replace` stores a taken name as `notes (1).txt` and returns the
 
 ## Requirements
 
-Jennifer 0.27.0 or newer, the default `jennifer` binary (not
+Jennifer 0.28.0 or newer, the default `jennifer` binary (not
 `jennifer-tiny`), and the `net` capability. Tested against Seafile 13.0
 Community Edition; file locks and full-text search need the Professional
 edition. Transfers are held in memory (see the manual's Limits).

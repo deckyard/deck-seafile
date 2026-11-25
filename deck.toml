@@ -14,4 +14,4 @@ homepage = "https://github.com/deckyard/deck-seafile"
 manual = "https://deckyard.github.io/deck-seafile/"
 
 [engines]
-jennifer = ">=0.27.0"
+jennifer = ">=0.28.0"
